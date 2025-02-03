@@ -7,54 +7,52 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:  # Allows manual triggering of the workflow
 
 jobs:
   build:
-    runs-on: ubuntu-latest  # Can use 'debian-12' when it's available, currently using Ubuntu as the base
+    runs-on: ubuntu-latest  # Using Ubuntu as the base, but we will run Debian 12 inside a Docker container
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Set up environment for building DeskFlow
+      - name: Set up Docker with Debian 12
         run: |
-          # Update and install dependencies
-          sudo apt update
-          sudo apt install -y \
-            build-essential \
-            cmake \
-            git \
-            pkg-config \
-            qtbase5-dev \
-            qtchooser \
-            qtbase5-dev-tools \
-            qt5-qmake \
-            libboost-all-dev \
-            libssl-dev \
-            libsdl2-dev \
-            libjpeg-dev \
-            libpng-dev \
-            libglib2.0-dev \
-            libgtk-3-dev \
-            libfreetype6-dev
-
-      - name: Clone DeskFlow repository with submodules
-        run: |
-          git clone --recurse-submodules https://github.com/deskflow/deskflow.git
-          cd deskflow
-
-      - name: Build DeskFlow
-        run: |
-          cd deskflow
-          mkdir build
-          cd build
-          cmake ..
-          make -j$(nproc)  # Use all available cores for faster build
+          docker pull debian:12
+          docker run --rm -v $PWD:/workspace -w /workspace debian:12 bash -c "
+            apt update &&
+            apt install -y \
+              build-essential \
+              cmake \
+              git \
+              pkg-config \
+              qtbase5-dev \
+              qtchooser \
+              qtbase5-dev-tools \
+              qt5-qmake \
+              libboost-all-dev \
+              libssl-dev \
+              libsdl2-dev \
+              libjpeg-dev \
+              libpng-dev \
+              libglib2.0-dev \
+              libgtk-3-dev \
+              libfreetype6-dev &&
+            git clone --recurse-submodules https://github.com/deskflow/deskflow.git &&
+            cd deskflow &&
+            mkdir build &&
+            cd build &&
+            cmake .. &&
+            make -j$(nproc)  # Use all available cores for faster build
+          "
 
       - name: Run tests (optional, if DeskFlow has tests)
         run: |
-          cd deskflow/build
-          make test # Optional step if tests are part of the build process
+          docker run --rm -v $PWD:/workspace -w /workspace debian:12 bash -c "
+            cd deskflow/build &&
+            make test  # Optional step if tests are part of the build process
+          "
 
       - name: Upload build artifacts (optional)
         uses: actions/upload-artifact@v3
